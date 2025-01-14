@@ -1,0 +1,15 @@
+regime_id,regime_name,description,calories_max,fat_max,saturated_fat_max,carbs_max,fiber_max,proteins_max,sodium_max,sugars_max,cholesterol_max
+1,Keto,"Low-carb, high-fat diet focused on ketosis",2000,100,30,50,10,150,2000,10,300
+2,Vegetarian,Plant-based diet allowing dairy and eggs,2000,60,15,250,30,100,1500,50,200
+3,Vegan,Strictly plant-based diet with no animal products,2000,60,15,250,30,100,1500,50,0
+4,DASH,"Dietary Approach to Stop Hypertension, low sodium",2500,70,20,200,25,100,1500,30,200
+5,Mediterranean,"Rich in fruits, vegetables, and healthy fats",2500,80,25,230,30,120,1800,30,250
+6,Low-Carb,Low carbohydrate intake to control blood sugar,1800,80,20,100,20,130,1500,25,200
+7,Paleo,"Focus on whole foods, no processed items",2500,100,25,150,25,150,2000,25,300
+8,High-Protein,High-protein intake for muscle maintenance,2500,60,15,200,20,200,1500,30,250
+9,Low-Fat,Low-fat diet for weight management,2000,30,10,300,25,100,1500,20,200
+10,Diabetic,Diet for blood sugar control,2000,60,15,150,20,100,1500,20,200
+11,FODMAP,Low FODMAP to reduce digestive symptoms,2000,60,15,150,20,120,1200,20,200
+12,Low-Sodium,Very low sodium intake for heart health,2000,60,15,150,20,120,1000,20,200
+13,Weight-Loss,Calorie-restricted diet for weight loss,1500,50,10,150,20,100,1500,15,150
+14,High-Calorie,High-calorie diet for energy and weight gain,3500,120,40,400,35,150,2000,50,400

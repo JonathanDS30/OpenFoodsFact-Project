@@ -1,0 +1,13 @@
+id,name,description
+1,None,No allergies
+2,Gluten,Includes wheat gluten and derivatives
+3,Milk and Dairy,"Includes milk, lactose, and dairy products"
+4,Nuts,"Includes nuts like peanuts, almonds, cashews, etc."
+5,Shellfish,Includes shellfish and molluscs
+6,Eggs,Includes eggs and egg derivatives
+7,Fish,Includes fish and seafood
+8,Soy,Includes soybeans and soy-based products
+9,Sulphites,Includes sulphur dioxide and sulphites
+10,Wheat,Includes wheat and wheat-based products
+11,Fruits,"Includes fruits like oranges, bananas, apples, etc."
+12,Sesame Seeds,Includes sesame seeds and sesame oil

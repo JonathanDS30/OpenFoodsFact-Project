@@ -1,52 +1,17 @@
-version: '3.8'
 services:
   db:
     image: mysql:8.0
-    container_name: "ETL-mysql-OFF"
+    container_name: "mysql-database"
     environment:
-      MYSQL_ROOT_PASSWORD: password
+      MYSQL_ROOT_PASSWORD: root_password
       MYSQL_DATABASE: openFoodFact
       MYSQL_USER: user
-      MYSQL_PASSWORD: password
+      MYSQL_PASSWORD: user_password
     ports:
       - "3306:3306" # MySQL accessible sur le port 3306
     volumes:
-      - db_data:/var/lib/mysql
-      - ./sql-scripts:/docker-entrypoint-initdb.d # Scripts SQL à exécuter au démarrage
-    networks:
-      - spark_network
-
-  spark-master:
-    image: bitnami/spark:latest
-    container_name: spark-master
-    environment:
-      - SPARK_MODE=master
-      - SPARK_RPC_AUTHENTICATION_ENABLED=no
-      - SPARK_RPC_ENCRYPTION_ENABLED=no
-      - SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no
-      - SPARK_SSL_ENABLED=no
-    ports:
-      - "8080:8080" # Interface web de Spark Master
-      - "7077:7077" # Port RPC pour Spark
-    networks:
-      - spark_network
-
-  spark-worker:
-    image: bitnami/spark:latest
-    container_name: spark-worker
-    environment:
-      - SPARK_MODE=worker
-      - SPARK_MASTER_URL=spark://spark-master:7077
-      - SPARK_WORKER_MEMORY=1G
-      - SPARK_WORKER_CORES=1
-    depends_on:
-      - spark-master
-    networks:
-      - spark_network
+      - ./mysql_data:/var/lib/mysql # Persistance des données MySQL
+      - ./sql-scripts:/docker-entrypoint-initdb.d # Initialisation avec des scripts SQL au démarrage
 
 volumes:
-  db_data:
-
-networks:
-  spark_network:
-    driver: bridge
+  mysql_data:

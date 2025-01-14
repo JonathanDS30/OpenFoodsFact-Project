@@ -1,1 +1,8 @@
+# Exclure les fichiers CSV de d'OFF
 data/en.openfoodfacts.org.products.csv
+/target/
+# Exclure les fichiers générés par Eclipse
+.classpath
+.project
+.settings/
+mysql_data/*
