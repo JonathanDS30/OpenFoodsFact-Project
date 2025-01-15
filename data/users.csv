@@ -1,4 +1,4 @@
-id,name,age,gender,weight,height,diet_id,allergy_id,country
-1,Alice Dupont,28,F,65,170,1,2.0,France
-2,Jean Martin,35,M,80,180,3,1,United States
-3,Emma Dubois,22,F,55,160,4,1.0,Germany
+id,name,age,gender,weight,height,diet_id,allergy_id,country_code
+1,Alice Dupont,28,F,65,170,1,2,FR
+2,Jean Martin,35,M,80,180,3,1,US
+3,Emma Dubois,22,F,55,160,4,3,DE
