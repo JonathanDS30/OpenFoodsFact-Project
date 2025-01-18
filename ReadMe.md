@@ -88,7 +88,8 @@ The workflow of this project includes the following key modules:
 
 The project follows this workflow:
 
-![image](https://github.com/user-attachments/assets/00c34752-7f44-4bb5-aa5d-1bedfb679d37)
+![image](https://github.com/user-attachments/assets/9d9d1e14-c8a8-40cc-a445-eb792dcc4968)
+
 
 
 ---
