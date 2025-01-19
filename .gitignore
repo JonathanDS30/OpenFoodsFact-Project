@@ -7,3 +7,5 @@ data/insert.py
 .project
 .settings/
 mysql_data/*
+.metadata/
+data/OpenFoodFacts - OpenFoodFacts.csv

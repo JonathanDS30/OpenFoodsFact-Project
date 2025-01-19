@@ -3,7 +3,7 @@ package com.epsi.openfoodfacts;
 public class Config {
 	// DF Config (CSV)
     // Path to the products data file
-    public static final String DATA_FILE_PRODUCTS = "data/en.openfoodfacts.org.products.csv";
+    public static final String DATA_FILE_PRODUCTS = "data/Sample.csv";
 
     // DataBase Config
     // Database host (URL)
