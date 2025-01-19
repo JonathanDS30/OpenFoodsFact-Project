@@ -1,6 +1,7 @@
 # Exclure les fichiers CSV de d'OFF
 data/en.openfoodfacts.org.products.csv
 data/insert.py
+data/en.openfoodfacts.org.products.csv.gz
 /target/
 # Exclure les fichiers générés par Eclipse
 .classpath
