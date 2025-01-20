@@ -18,7 +18,7 @@ public class Transformer {
     public static Dataset<Row> transformData(Dataset<Row> rawData, SparkSession sparkSession) {
         // Sélection et conversion des colonnes nécessaires
         Dataset<Row> selectedData = rawData.select(
-                col("code").cast("string"),
+                col("code").cast("int"),
                 col("product_name").cast("string"),
                 col("brands").cast("string"),
                 col("categories").cast("string"),
