@@ -18,7 +18,7 @@ public class Transformer {
     public static Dataset<Row> transformData(Dataset<Row> rawData, SparkSession sparkSession) {
         // Sélection et conversion des colonnes nécessaires
         Dataset<Row> selectedData = rawData.select(
-                col("code").cast("string"),
+                col("code").cast("int"),
                 col("product_name").cast("string"),
                 col("brands").cast("string"),
                 col("categories").cast("string"),
@@ -33,7 +33,9 @@ public class Transformer {
                 col("fiber_100g").cast("float"),
                 col("proteins_100g").cast("float"),
                 col("salt_100g").cast("float"),
-                col("sodium_100g").cast("float")
+                col("sodium_100g").cast("float"),
+                col("pnns_groups_1").cast("string"),
+                col("pnns_groups_2").cast("string")
         );
 
         // Suppression des lignes avec des valeurs nulles dans les colonnes essentielles
