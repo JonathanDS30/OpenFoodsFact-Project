@@ -3,102 +3,96 @@ package com.epsi.openfoodfacts;
 import org.apache.spark.sql.SparkSession;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
+import org.apache.spark.storage.StorageLevel;
 
-import java.sql.Connection;
-import java.sql.DriverManager;
 import java.util.List;
-import java.util.Map;
 
 public class Main {
 
     public static void main(String[] args) {
-        // Initialize SparkSession
+        // Initialisation de la SparkSession
         SparkSession sparkSession = SparkSession.builder()
-                .appName("OpenFoodFacts ETL Test")
-                .master("local[*]") // Use all available CPU cores
+                .appName("OpenFoodFacts ETL")
+                .master("local[*]") // Utilise tous les cœurs disponibles localement
                 .getOrCreate();
 
         try {
-            // Extract data from the database
-            System.out.println("Extracting data from the database...");
+            // Étape 1 : Extraction des données brutes depuis le fichier CSV
+            System.out.println("Étape 1 : Extraction des données depuis le fichier CSV...");
+            Dataset<Row> rawCsvData = Extractor.extractFromCSV(
+                    sparkSession,
+                    Config.DATA_FILE_PRODUCTS,
+                    "\\t" // Fichier délimité par des tabulations
+            ).repartition(10); // Répartition des partitions pour équilibrer la charge
 
-            // Extract users table
+            // Étape 2 : Transformation et validation des données
+            System.out.println("Étape 2 : Transformation et validation des données...");
+            Dataset<Row> transformedData = Transformer.transformData(rawCsvData, sparkSession).persist(StorageLevel.MEMORY_AND_DISK());
+
+            // Affichage d'un échantillon des données transformées
+            System.out.println("Échantillon des données transformées :");
+            transformedData.show(10, false);
+
+            // Étape 3 : Extraction des données depuis la base de données
+            System.out.println("Étape 3 : Extraction des données depuis la base de données...");
             Dataset<Row> usersDataset = Extractor.extractFromDatabase(
                     sparkSession,
                     Config.DB_HOST,
                     Config.DB_USER,
                     Config.DB_PASSWORD,
                     "users"
-            );
+            ).repartition(5);
 
-            // Extract regimes table
             Dataset<Row> regimesDataset = Extractor.extractFromDatabase(
                     sparkSession,
                     Config.DB_HOST,
                     Config.DB_USER,
                     Config.DB_PASSWORD,
                     "regimes"
-            );
+            ).repartition(5);
 
-            // Extract allergies table
-            Dataset<Row> allergiesDataset = Extractor.extractFromDatabase(
-                    sparkSession,
-                    Config.DB_HOST,
-                    Config.DB_USER,
-                    Config.DB_PASSWORD,
-                    "allergies"
-            );
+            // Mise en cache des jeux de données pour éviter les recalculs
+            usersDataset.persist(StorageLevel.MEMORY_AND_DISK());
+            regimesDataset.persist(StorageLevel.MEMORY_AND_DISK());
 
-            // Extract products table
-            Dataset<Row> productsDataset = Extractor.extractFromDatabase(
-                    sparkSession,
-                    Config.DB_HOST,
-                    Config.DB_USER,
-                    Config.DB_PASSWORD,
-                    "products"
-            );
+            // Comptage des données pour validation
+            System.out.println("Nombre d'utilisateurs : " + usersDataset.count());
+            System.out.println("Nombre de régimes : " + regimesDataset.count());
+            System.out.println("Nombre de produits transformés : " + transformedData.count());
 
-            // Log counts for validation
-            System.out.println("Users count: " + usersDataset.count());
-            System.out.println("Regimes count: " + regimesDataset.count());
-            System.out.println("Allergies count: " + allergiesDataset.count());
-            System.out.println("Products count: " + productsDataset.count());
-
-            // Example: Generate menu for a user
-            System.out.println("Connecting to the database for menu generation...");
-            Connection connection = DriverManager.getConnection(
-                    Config.DB_HOST,
-                    Config.DB_USER,
-                    Config.DB_PASSWORD
-            );
-            System.out.println("Database connected successfully.");
-
-            // Test user ID
-            int userIdToTest = 1; // Replace with an actual user ID from your database
-
-            // Generate menu for the test user
-            System.out.println("Generating menu for user ID: " + userIdToTest);
-            List<Map<String, Object>> generatedMenu = Generator.generateMenu(connection, userIdToTest);
-
-            // Display the generated menu
-            System.out.println("Menu generated for user ID: " + userIdToTest);
-            for (Map<String, Object> product : generatedMenu) {
-                System.out.println("Product Name: " + product.get("name"));
-                System.out.println("Calories: " + product.get("calories"));
-                System.out.println("Fat: " + product.get("fat"));
-                System.out.println("Carbohydrates: " + product.get("carbs"));
-                System.out.println("Fiber: " + product.get("fiber"));
-                System.out.println("Proteins: " + product.get("proteins"));
+            // Étape 4 : Extraction de 5 produits pour inspection
+            System.out.println("Étape 4 : Extraction de 5 produits pour inspection...");
+            List<Row> productList = transformedData.limit(5).collectAsList();
+            for (Row product : productList) {
+                System.out.println("Nom du produit : " + product.getAs("product_name"));
+                System.out.println("Catégories : " + product.getAs("categories"));
+                System.out.println("Marques : " + product.getAs("brands"));
+                System.out.println("Énergie (kcal/100g) : " + product.getAs("energy-kcal_100g"));
                 System.out.println("-------------------------------");
             }
 
+            // Étape 5 : Génération d'un menu personnalisé pour un utilisateur
+            int userIdToTest = 1; // ID d'utilisateur à tester
+            System.out.println("Étape 5 : Génération d'un menu pour l'utilisateur ID : " + userIdToTest);
+            Dataset<Row> userMenu = Generator.generateMenu(
+                    transformedData,
+                    usersDataset,
+                    regimesDataset,
+                    userIdToTest
+            );
+
+            // Affichage du menu généré
+            System.out.println("Menu généré pour l'utilisateur ID : " + userIdToTest);
+            userMenu.show();
+
         } catch (Exception e) {
+            // Gestion des erreurs
             e.printStackTrace();
-            System.err.println("An error occurred while testing the ETL pipeline: " + e.getMessage());
+            System.err.println("Une erreur est survenue pendant l'exécution du pipeline ETL : " + e.getMessage());
         } finally {
-            // Stop SparkSession
+            // Fermeture de la SparkSession
             sparkSession.stop();
-            System.out.println("SparkSession stopped.");
+            System.out.println("SparkSession arrêtée.");
         }
     }
 }
