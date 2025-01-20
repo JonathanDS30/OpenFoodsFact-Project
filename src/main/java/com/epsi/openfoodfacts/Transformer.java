@@ -29,13 +29,16 @@ public class Transformer {
                 col("nova_group").cast("int"),
                 col("energy-kcal_100g").cast("float"),
                 col("fat_100g").cast("float"),
+                col("saturated-fat_100g").cast("float"), // Ajouté
                 col("carbohydrates_100g").cast("float"),
+                col("sugars_100g").cast("float"), // Ajouté
                 col("fiber_100g").cast("float"),
                 col("proteins_100g").cast("float"),
                 col("salt_100g").cast("float"),
                 col("sodium_100g").cast("float"),
-                col("pnns_groups_1").cast("string"),
-                col("pnns_groups_2").cast("string")
+                col("pnns_groups_1").cast("string"), // Conservé
+                col("pnns_groups_2").cast("string"), // Conservé
+                col("origins").cast("string") // Ajouté
         );
 
         // Suppression des lignes avec des valeurs nulles dans les colonnes essentielles
@@ -50,8 +53,7 @@ public class Transformer {
 
         // Filtrage des données sur les plages de valeurs valides
         cleanedData = cleanedData.filter(
-                col("nutriscore_score").between(-15, 40)
-                        .and(col("nutriscore_grade").isin("a", "b", "c", "d", "e"))
+                        col("nutriscore_grade").isin("a", "b", "c", "d", "e")
                         .and(col("nova_group").between(1, 4))
                         .and(col("energy-kcal_100g").between(0, 1000))
                         .and(col("fat_100g").between(0, 100))

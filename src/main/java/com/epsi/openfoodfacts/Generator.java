@@ -3,10 +3,7 @@ package com.epsi.openfoodfacts;
 import org.apache.spark.sql.*;
 import org.apache.spark.sql.types.*;
 
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.apache.spark.sql.functions.*;
@@ -29,6 +26,9 @@ public class Generator {
 
         List<Row> allMenuDays = new ArrayList<>();
         List<Row> allMenus = new ArrayList<>();
+        Set<Integer> usedProductIdsGlobal = new HashSet<>(); // Conserver tous les IDs produits déjà utilisés
+        List<Row> uniqueProducts = new ArrayList<>(); // Liste pour stocker les produits uniques
+
         for (Row user : usersDataset.collectAsList()) {
             try {
                 int userId = user.getAs("id");
@@ -39,7 +39,7 @@ public class Generator {
 
                 System.out.println("Generating weekly menu for user: " + userName + " (ID: " + userId + ", Menu ID: " + menuId + ")");
 
-                List<Row> userMenuDays = generateWeeklyMenu(cleanedData, userId, menuId, sparkSession);
+                List<Row> userMenuDays = generateWeeklyMenu(cleanedData, userId, menuId, usedProductIdsGlobal, uniqueProducts, sparkSession);
                 allMenuDays.addAll(userMenuDays);
 
             } catch (Exception e) {
@@ -57,12 +57,20 @@ public class Generator {
         menuDaysDataset.write()
                 .option("header", true)
                 .csv("output/menu_days.csv");
+
+        // Sauvegarde des produits uniques utilisés
+        Dataset<Row> uniqueProductsDataset = sparkSession.createDataFrame(uniqueProducts, getProductsSchema());
+        uniqueProductsDataset.write()
+                .option("header", true)
+                .csv("output/unique_products.csv");
     }
 
     public static List<Row> generateWeeklyMenu(
             Dataset<Row> cleanedData,
             int userId,
             int menuId,
+            Set<Integer> usedProductIdsGlobal,
+            List<Row> uniqueProducts,
             SparkSession sparkSession
     ) {
         Dataset<Row> userDataset = sparkSession.read()
@@ -108,18 +116,13 @@ public class Generator {
         int menuDaysIdCounter = 1;
 
         for (int day = 1; day <= 7; day++) {
-            Set<Integer> usedProductIds = new HashSet<>();
+            Set<Integer> usedProductIdsDaily = new HashSet<>(); // Conserver les produits utilisés pour la journée
 
-            // Breakfast (1 product)
-            Integer breakfast = selectUniqueProduct(filteredProducts, usedProductIds, "Breakfast", day, menuId);
-
-            // Lunch (2 products)
-            Integer lunch1 = selectUniqueProduct(filteredProducts, usedProductIds, "Lunch 1", day, menuId);
-            Integer lunch2 = selectUniqueProduct(filteredProducts, usedProductIds, "Lunch 2", day, menuId);
-
-            // Dinner (2 products)
-            Integer dinner1 = selectUniqueProduct(filteredProducts, usedProductIds, "Dinner 1", day, menuId);
-            Integer dinner2 = selectUniqueProduct(filteredProducts, usedProductIds, "Dinner 2", day, menuId);
+            Integer breakfast = selectUniqueProduct(filteredProducts, usedProductIdsDaily, usedProductIdsGlobal, uniqueProducts);
+            Integer lunch1 = selectUniqueProduct(filteredProducts, usedProductIdsDaily, usedProductIdsGlobal, uniqueProducts);
+            Integer lunch2 = selectUniqueProduct(filteredProducts, usedProductIdsDaily, usedProductIdsGlobal, uniqueProducts);
+            Integer dinner1 = selectUniqueProduct(filteredProducts, usedProductIdsDaily, usedProductIdsGlobal, uniqueProducts);
+            Integer dinner2 = selectUniqueProduct(filteredProducts, usedProductIdsDaily, usedProductIdsGlobal, uniqueProducts);
 
             Row menuDay = RowFactory.create(
                     menuDaysIdCounter++,
@@ -139,26 +142,41 @@ public class Generator {
 
     private static Integer selectUniqueProduct(
             Dataset<Row> filteredProducts,
-            Set<Integer> usedProductIds,
-            String mealType,
-            int day,
-            int menuId
+            Set<Integer> usedProductIdsDaily,
+            Set<Integer> usedProductIdsGlobal,
+            List<Row> uniqueProducts
     ) {
         Row productRow = filteredProducts
-                .filter(not(col("code").isin((Object[]) usedProductIds.toArray())))
+                .filter(not(col("code").isin((Object[]) usedProductIdsDaily.toArray())))
+                .filter(not(col("code").isin((Object[]) usedProductIdsGlobal.toArray())))
                 .sample(false, 0.1)
                 .limit(1)
                 .first();
 
         if (productRow != null) {
             Integer productId = productRow.getAs("code");
-            String productName = productRow.getAs("product_name");
+            usedProductIdsDaily.add(productId);
+            usedProductIdsGlobal.add(productId);
 
-            // Log the product selection
-            System.out.printf("Menu ID: %d | Day: %d | Meal: %s | Product ID: %d | Product Name: %s%n",
-                    menuId, day, mealType, productId, productName);
+            // Ajout des informations du produit à la liste des produits uniques
+            uniqueProducts.add(RowFactory.create(
+                    productRow.getAs("code"),
+                    productRow.getAs("product_name"),
+                    productRow.getAs("categories"),
+                    productRow.getAs("brands"),
+                    productRow.getAs("countries_tags"),
+                    productRow.getAs("energy-kcal_100g"),
+                    productRow.getAs("fat_100g"),
+                    productRow.getAs("carbohydrates_100g"),
+                    productRow.getAs("fiber_100g"),
+                    productRow.getAs("proteins_100g"),
+                    productRow.getAs("salt_100g"),
+                    productRow.getAs("sodium_100g"),
+                    productRow.getAs("allergens"),
+                    productRow.getAs("nutriscore_grade"),
+                    productRow.getAs("nova_group")
+            ));
 
-            usedProductIds.add(productId);
             return productId;
         }
 
@@ -182,6 +200,26 @@ public class Generator {
                 DataTypes.createStructField("lunch_2", DataTypes.IntegerType, true),
                 DataTypes.createStructField("dinner_1", DataTypes.IntegerType, true),
                 DataTypes.createStructField("dinner_2", DataTypes.IntegerType, true)
+        });
+    }
+
+    private static StructType getProductsSchema() {
+        return new StructType(new StructField[]{
+                DataTypes.createStructField("code", DataTypes.IntegerType, false),
+                DataTypes.createStructField("product_name", DataTypes.StringType, true),
+                DataTypes.createStructField("categories", DataTypes.StringType, true),
+                DataTypes.createStructField("brands", DataTypes.StringType, true),
+                DataTypes.createStructField("countries_tags", DataTypes.StringType, true),
+                DataTypes.createStructField("energy-kcal_100g", DataTypes.FloatType, true),
+                DataTypes.createStructField("fat_100g", DataTypes.FloatType, true),
+                DataTypes.createStructField("carbohydrates_100g", DataTypes.FloatType, true),
+                DataTypes.createStructField("fiber_100g", DataTypes.FloatType, true),
+                DataTypes.createStructField("proteins_100g", DataTypes.FloatType, true),
+                DataTypes.createStructField("salt_100g", DataTypes.FloatType, true),
+                DataTypes.createStructField("sodium_100g", DataTypes.FloatType, true),
+                DataTypes.createStructField("allergens", DataTypes.StringType, true),
+                DataTypes.createStructField("nutriscore_grade", DataTypes.StringType, true),
+                DataTypes.createStructField("nova_group", DataTypes.IntegerType, true)
         });
     }
 }
