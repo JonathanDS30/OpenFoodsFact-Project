@@ -5,6 +5,8 @@ import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.storage.StorageLevel;
 
+import java.util.Map;
+
 public class Main {
 
     public static void main(String[] args) {
@@ -30,7 +32,14 @@ public class Main {
 
             // Step 3: Generate weekly menus for all users
             System.out.println("Generating weekly menus for all users...");
-            Generator.generateWeeklyMenusForAllUsers(transformedData, sparkSession);
+            Map<String, Dataset<Row>> generatedData = Generator.generateWeeklyMenusForAllUsers(transformedData, sparkSession);
+
+            // Step 4: Load data into the database
+            System.out.println("Loading data into the database...");
+            Loader.loadToDatabase(generatedData.get("menus"), Config.DB_HOST, Config.DB_USER, Config.DB_PASSWORD, "menus");
+            Loader.loadToDatabase(generatedData.get("products"), Config.DB_HOST, Config.DB_USER, Config.DB_PASSWORD, "products");
+            Loader.loadToDatabase(generatedData.get("menu_days"), Config.DB_HOST, Config.DB_USER, Config.DB_PASSWORD, "menu_days");
+
 
         } catch (Exception e) {
             System.err.println("An error occurred during execution: " + e.getMessage());

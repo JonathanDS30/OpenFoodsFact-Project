@@ -10,7 +10,7 @@ import static org.apache.spark.sql.functions.*;
 
 public class Generator {
 
-    public static void generateWeeklyMenusForAllUsers(
+    public static Map<String, Dataset<Row>> generateWeeklyMenusForAllUsers(
             Dataset<Row> cleanedData,
             SparkSession sparkSession
     ) {
@@ -32,12 +32,9 @@ public class Generator {
         for (Row user : usersDataset.collectAsList()) {
             try {
                 int userId = user.getAs("id");
-                String userName = user.getAs("name");
 
                 int menuId = menuIdCounter.getAndIncrement();
                 allMenus.add(RowFactory.create(menuId, userId));
-
-                System.out.println("Generating weekly menu for user: " + userName + " (ID: " + userId + ", Menu ID: " + menuId + ")");
 
                 List<Row> userMenuDays = generateWeeklyMenu(cleanedData, userId, menuId, usedProductIdsGlobal, uniqueProducts, sparkSession);
                 allMenuDays.addAll(userMenuDays);
@@ -48,21 +45,26 @@ public class Generator {
             }
         }
 
-        Dataset<Row> menusDataset = sparkSession.createDataFrame(allMenus, getMenusSchema());
-        menusDataset.write()
-                .option("header", true)
-                .csv("output/menus.csv");
+        Dataset<Row> menusDataset = sparkSession.createDataFrame(allMenus, getMenusSchema()).withColumnRenamed("menu_id", "id");
+        Dataset<Row> menuDaysDataset = sparkSession.createDataFrame(allMenuDays, getMenuDaysSchema())
+        	    .withColumnRenamed("breakfast", "breakfast_id")
+        	    .withColumnRenamed("lunch_1", "lunch_id_1")
+        	    .withColumnRenamed("lunch_2", "lunch_id_2")
+        	    .withColumnRenamed("dinner_1", "dinner_id_1")
+        	    .withColumnRenamed("dinner_2", "dinner_id_2")
+        	    // Ajouter une colonne unique combinant `menu_id` et `day_of_week`
+        	    .withColumn("id", functions.concat_ws("_", col("menu_id"), col("day_of_week")));
+        Dataset<Row> uniqueProductsDataset = sparkSession.createDataFrame(uniqueProducts, getProductsSchema())    .withColumnRenamed("code", "id")
+        	    .withColumnRenamed("categories", "categories_en")
+        	    .withColumnRenamed("countries_tags", "origins_en");
 
-        Dataset<Row> menuDaysDataset = sparkSession.createDataFrame(allMenuDays, getMenuDaysSchema());
-        menuDaysDataset.write()
-                .option("header", true)
-                .csv("output/menu_days.csv");
+        // Retourner les DataFrames sous forme d'une Map
+        Map<String, Dataset<Row>> resultMap = new HashMap<>();
+        resultMap.put("menus", menusDataset);
+        resultMap.put("menu_days", menuDaysDataset);
+        resultMap.put("products", uniqueProductsDataset);
 
-        // Sauvegarde des produits uniques utilisés
-        Dataset<Row> uniqueProductsDataset = sparkSession.createDataFrame(uniqueProducts, getProductsSchema());
-        uniqueProductsDataset.write()
-                .option("header", true)
-                .csv("output/unique_products.csv");
+        return resultMap;
     }
 
     public static List<Row> generateWeeklyMenu(
