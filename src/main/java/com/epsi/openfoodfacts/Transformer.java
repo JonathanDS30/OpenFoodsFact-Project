@@ -29,11 +29,16 @@ public class Transformer {
                 col("nova_group").cast("int"),
                 col("energy-kcal_100g").cast("float"),
                 col("fat_100g").cast("float"),
+                col("saturated-fat_100g").cast("float"), // Ajouté
                 col("carbohydrates_100g").cast("float"),
+                col("sugars_100g").cast("float"), // Ajouté
                 col("fiber_100g").cast("float"),
                 col("proteins_100g").cast("float"),
                 col("salt_100g").cast("float"),
-                col("sodium_100g").cast("float")
+                col("sodium_100g").cast("float"),
+                col("pnns_groups_1").cast("string"), // Conservé
+                col("pnns_groups_2").cast("string"), // Conservé
+                col("origins").cast("string") // Ajouté
         );
 
         // Suppression des lignes avec des valeurs nulles dans les colonnes essentielles
@@ -48,12 +53,13 @@ public class Transformer {
 
         // Filtrage des données sur les plages de valeurs valides
         cleanedData = cleanedData.filter(
-                col("nutriscore_score").between(-15, 40)
-                        .and(col("nutriscore_grade").isin("a", "b", "c", "d", "e"))
+                        col("nutriscore_grade").isin("a", "b", "c", "d", "e")
                         .and(col("nova_group").between(1, 4))
                         .and(col("energy-kcal_100g").between(0, 1000))
                         .and(col("fat_100g").between(0, 100))
+                        .and(col("saturated-fat_100g").between(0, 100)) // Plage de valeurs pour les graisses saturées
                         .and(col("carbohydrates_100g").between(0, 100))
+                        .and(col("sugars_100g").between(0, 100)) // Plage de valeurs pour les sucres
                         .and(col("fiber_100g").between(0, 100))
                         .and(col("proteins_100g").between(0, 100))
                         .and(col("salt_100g").between(0, 100))
@@ -65,7 +71,7 @@ public class Transformer {
 
         // Nettoyage des colonnes contenant des chaînes de caractères
         cleanedData = cleanedData.filter(
-                col("product_name").rlike("^[\\x00-\\x7F]+$")
+                col("product_name").rlike("^[\\x00-\\x7F]+$") // Caractères ASCII uniquement
                         .and(col("categories").rlike("^[\\x00-\\x7F]+$"))
                         .and(col("countries_tags").rlike("^[\\x00-\\x7F]+$"))
         );
@@ -73,17 +79,20 @@ public class Transformer {
         // Répartition pour équilibrer les tâches (en fonction de la taille des données)
         cleanedData = cleanedData.repartition(10);
 
-        // Mise en cache pour éviter les recalculs
-        cleanedData = cleanedData.persist();
-
         // Arrondi des colonnes numériques
         String[] numericColumns = {
-                "energy-kcal_100g", "fat_100g", "carbohydrates_100g", "fiber_100g",
-                "proteins_100g", "salt_100g", "sodium_100g"
+                "energy-kcal_100g", "fat_100g", "saturated-fat_100g", "carbohydrates_100g",
+                "sugars_100g", "fiber_100g", "proteins_100g", "salt_100g", "sodium_100g"
         };
         for (String column : numericColumns) {
             cleanedData = cleanedData.withColumn(column, round(col(column), 2));
         }
+
+        // Cast explicite des colonnes pour correspondre au schéma final
+        cleanedData = cleanedData
+                .withColumn("code", col("code").cast("int"))
+                .withColumn("nutriscore_score", col("nutriscore_score").cast("float"))
+                .withColumn("nova_group", col("nova_group").cast("int"));
 
         return cleanedData;
     }
