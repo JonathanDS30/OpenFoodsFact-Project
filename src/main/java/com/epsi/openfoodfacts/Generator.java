@@ -10,32 +10,44 @@ import static org.apache.spark.sql.functions.*;
 
 public class Generator {
 
+    /**
+     * Generates weekly menus for all users by processing cleaned data and user-specific constraints.
+     *
+     * @param cleanedData   Cleaned Dataset containing product information.
+     * @param sparkSession  The Spark session used for processing.
+     * @return A map containing three datasets: menus, menu_days, and unique products.
+     */
     public static Map<String, Dataset<Row>> generateWeeklyMenusForAllUsers(
             Dataset<Row> cleanedData,
             SparkSession sparkSession
     ) {
-        Dataset<Row> usersDataset = sparkSession.read()
-                .format("jdbc")
-                .option("url", Config.DB_HOST)
-                .option("dbtable", "users")
-                .option("user", Config.DB_USER)
-                .option("password", Config.DB_PASSWORD)
-                .load();
+        // Load the users dataset from the database
+    	Dataset<Row> usersDataset = Extractor.extractFromDatabase(
+    	        sparkSession,
+    	        Config.DB_HOST,
+    	        Config.DB_USER,
+    	        Config.DB_PASSWORD,
+    	        "users"
+    	);
 
-        AtomicInteger menuIdCounter = new AtomicInteger(1);
+        AtomicInteger menuIdCounter = new AtomicInteger(1); // Counter for generating unique menu IDs
 
+        // Initialize collections for storing menus and menu days
         List<Row> allMenuDays = new ArrayList<>();
         List<Row> allMenus = new ArrayList<>();
-        Set<Integer> usedProductIdsGlobal = new HashSet<>(); // Conserver tous les IDs produits déjà utilisés
-        List<Row> uniqueProducts = new ArrayList<>(); // Liste pour stocker les produits uniques
+        Set<Integer> usedProductIdsGlobal = new HashSet<>();
+        List<Row> uniqueProducts = new ArrayList<>();
 
+        // Loop through each user to generate their menu
         for (Row user : usersDataset.collectAsList()) {
             try {
                 int userId = user.getAs("id");
 
+                // Generate a unique menu ID for the user
                 int menuId = menuIdCounter.getAndIncrement();
                 allMenus.add(RowFactory.create(menuId, userId));
 
+                // Generate the weekly menu for the user
                 List<Row> userMenuDays = generateWeeklyMenu(cleanedData, userId, menuId, usedProductIdsGlobal, uniqueProducts, sparkSession);
                 allMenuDays.addAll(userMenuDays);
 
@@ -45,20 +57,22 @@ public class Generator {
             }
         }
 
+        // Create datasets for menus, menu days, and unique products
         Dataset<Row> menusDataset = sparkSession.createDataFrame(allMenus, getMenusSchema()).withColumnRenamed("menu_id", "id");
         Dataset<Row> menuDaysDataset = sparkSession.createDataFrame(allMenuDays, getMenuDaysSchema())
-        	    .withColumnRenamed("breakfast", "breakfast_id")
-        	    .withColumnRenamed("lunch_1", "lunch_id_1")
-        	    .withColumnRenamed("lunch_2", "lunch_id_2")
-        	    .withColumnRenamed("dinner_1", "dinner_id_1")
-        	    .withColumnRenamed("dinner_2", "dinner_id_2")
-        	    // Ajouter une colonne unique combinant `menu_id` et `day_of_week`
-        	    .withColumn("id", functions.concat_ws("_", col("menu_id"), col("day_of_week")));
-        Dataset<Row> uniqueProductsDataset = sparkSession.createDataFrame(uniqueProducts, getProductsSchema())    .withColumnRenamed("code", "id")
-        	    .withColumnRenamed("categories", "categories_en")
-        	    .withColumnRenamed("countries_tags", "origins_en");
+                .withColumnRenamed("breakfast", "breakfast_id")
+                .withColumnRenamed("lunch_1", "lunch_id_1")
+                .withColumnRenamed("lunch_2", "lunch_id_2")
+                .withColumnRenamed("dinner_1", "dinner_id_1")
+                .withColumnRenamed("dinner_2", "dinner_id_2")
+                // Add a unique column combining `menu_id` and `day_of_week`
+                .withColumn("id", functions.concat_ws("_", col("menu_id"), col("day_of_week")));
+        Dataset<Row> uniqueProductsDataset = sparkSession.createDataFrame(uniqueProducts, getProductsSchema())
+                .withColumnRenamed("code", "id")
+                .withColumnRenamed("categories", "categories_en")
+                .withColumnRenamed("countries_tags", "origins_en");
 
-        // Retourner les DataFrames sous forme d'une Map
+        // Return the datasets as a map
         Map<String, Dataset<Row>> resultMap = new HashMap<>();
         resultMap.put("menus", menusDataset);
         resultMap.put("menu_days", menuDaysDataset);
@@ -67,6 +81,17 @@ public class Generator {
         return resultMap;
     }
 
+    /**
+     * Generates a weekly menu for a specific user based on their dietary constraints.
+     *
+     * @param cleanedData         Cleaned product data.
+     * @param userId              The ID of the user.
+     * @param menuId              The menu ID for the user.
+     * @param usedProductIdsGlobal A global set of used product IDs to avoid duplication.
+     * @param uniqueProducts      A list of unique products for the menu.
+     * @param sparkSession        The Spark session used for processing.
+     * @return A list of rows representing menu days for the user.
+     */
     public static List<Row> generateWeeklyMenu(
             Dataset<Row> cleanedData,
             int userId,
@@ -75,41 +100,47 @@ public class Generator {
             List<Row> uniqueProducts,
             SparkSession sparkSession
     ) {
-        Dataset<Row> userDataset = sparkSession.read()
-                .format("jdbc")
-                .option("url", Config.DB_HOST)
-                .option("dbtable", "(SELECT * FROM users WHERE id = " + userId + ") AS user_data")
-                .option("user", Config.DB_USER)
-                .option("password", Config.DB_PASSWORD)
-                .load();
+        // Load user data from the database
+    	Dataset<Row> userDataset = Extractor.extractFromDatabase(
+    	        sparkSession,
+    	        Config.DB_HOST,
+    	        Config.DB_USER,
+    	        Config.DB_PASSWORD,
+    	        "(SELECT * FROM users WHERE id = " + userId + ") AS user_data"
+    	);
+
 
         Row user = userDataset.first();
         if (user == null) {
-            throw new IllegalArgumentException("Utilisateur avec l'ID " + userId + " introuvable !");
+            throw new IllegalArgumentException("User with ID " + userId + " not found!");
         }
 
         Integer dietId = user.getAs("diet_id");
         Integer allergyId = user.getAs("allergy_id");
 
         if (dietId == null) {
-            throw new IllegalArgumentException("Aucun régime associé à l'utilisateur ID " + userId);
+            throw new IllegalArgumentException("No diet associated with user ID " + userId);
         }
 
-        Dataset<Row> regimesDataset = sparkSession.read()
-                .format("jdbc")
-                .option("url", Config.DB_HOST)
-                .option("dbtable", "(SELECT * FROM regimes WHERE regime_id = " + dietId + ") AS regime_data")
-                .option("user", Config.DB_USER)
-                .option("password", Config.DB_PASSWORD)
-                .load();
+        // Load dietary information from the database
+        Dataset<Row> regimesDataset = Extractor.extractFromDatabase(
+                sparkSession,
+                Config.DB_HOST,
+                Config.DB_USER,
+                Config.DB_PASSWORD,
+                "(SELECT * FROM regimes WHERE regime_id = " + dietId + ") AS regime_data"
+        );
+
 
         Double maxCalories = regimesDataset.select("calories_max").as(Encoders.DOUBLE()).first();
 
+        // List of allergy IDs for the user
         List<Integer> userAllergyIds = new ArrayList<>();
         if (allergyId != null) {
             userAllergyIds.add(allergyId);
         }
 
+        // Filter products based on allergies and calorie constraints
         Dataset<Row> filteredProducts = cleanedData
                 .filter(not(col("allergens").isin((Object[]) userAllergyIds.toArray())))
                 .filter(col("energy-kcal_100g").leq(maxCalories));
@@ -117,8 +148,9 @@ public class Generator {
         List<Row> menuDays = new ArrayList<>();
         int menuDaysIdCounter = 1;
 
+        // Generate menu for each day of the week
         for (int day = 1; day <= 7; day++) {
-            Set<Integer> usedProductIdsDaily = new HashSet<>(); // Conserver les produits utilisés pour la journée
+            Set<Integer> usedProductIdsDaily = new HashSet<>();
 
             Integer breakfast = selectUniqueProduct(filteredProducts, usedProductIdsDaily, usedProductIdsGlobal, uniqueProducts);
             Integer lunch1 = selectUniqueProduct(filteredProducts, usedProductIdsDaily, usedProductIdsGlobal, uniqueProducts);
@@ -142,6 +174,9 @@ public class Generator {
         return menuDays;
     }
 
+    /**
+     * Selects a unique product from the filtered products Dataset.
+     */
     private static Integer selectUniqueProduct(
             Dataset<Row> filteredProducts,
             Set<Integer> usedProductIdsDaily,
@@ -160,7 +195,7 @@ public class Generator {
             usedProductIdsDaily.add(productId);
             usedProductIdsGlobal.add(productId);
 
-            // Ajout des informations du produit à la liste des produits uniques
+            // Add product information to the list of unique products
             uniqueProducts.add(RowFactory.create(
                     productRow.getAs("code"),
                     productRow.getAs("product_name"),
@@ -182,9 +217,10 @@ public class Generator {
             return productId;
         }
 
-        throw new IllegalArgumentException("Aucun produit unique disponible pour le filtrage !");
+        throw new IllegalArgumentException("No unique product available for filtering!");
     }
 
+    // Schema definitions for menus, menu days, and products
     private static StructType getMenusSchema() {
         return new StructType(new StructField[]{
                 DataTypes.createStructField("menu_id", DataTypes.IntegerType, false),
