@@ -2,6 +2,8 @@
 data/en.openfoodfacts.org.products.csv
 data/insert.py
 data/en.openfoodfacts.org.products.csv.gz
+dump.sql
+!sql-scripts/dump.sql
 /target/
 # Exclure les fichiers générés par Eclipse
 .classpath
