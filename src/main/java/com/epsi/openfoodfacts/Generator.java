@@ -69,8 +69,7 @@ public class Generator {
                 .withColumn("id", functions.concat_ws("_", col("menu_id"), col("day_of_week")));
         Dataset<Row> uniqueProductsDataset = sparkSession.createDataFrame(uniqueProducts, getProductsSchema())
                 .withColumnRenamed("code", "id")
-                .withColumnRenamed("categories", "categories_en")
-                .withColumnRenamed("countries_tags", "origins_en");
+                .withColumnRenamed("categories", "categories_en");
 
         // Return the datasets as a map
         Map<String, Dataset<Row>> resultMap = new HashMap<>();
@@ -197,22 +196,25 @@ public class Generator {
 
             // Add product information to the list of unique products
             uniqueProducts.add(RowFactory.create(
-                    productRow.getAs("code"),
-                    productRow.getAs("product_name"),
-                    productRow.getAs("categories"),
-                    productRow.getAs("brands"),
-                    productRow.getAs("countries_tags"),
-                    productRow.getAs("energy-kcal_100g"),
-                    productRow.getAs("fat_100g"),
-                    productRow.getAs("carbohydrates_100g"),
-                    productRow.getAs("fiber_100g"),
-                    productRow.getAs("proteins_100g"),
-                    productRow.getAs("salt_100g"),
-                    productRow.getAs("sodium_100g"),
-                    productRow.getAs("allergens"),
-                    productRow.getAs("nutriscore_grade"),
-                    productRow.getAs("nova_group")
-            ));
+            	    productRow.getAs("code"),
+            	    productRow.getAs("product_name"),
+            	    productRow.getAs("categories"),
+            	    productRow.getAs("brands"),
+            	    productRow.getAs("countries_tags"),
+            	    productRow.getAs("energy-kcal_100g"),
+            	    productRow.getAs("fat_100g"),
+            	    productRow.getAs("saturated-fat_100g"),  // Ajouté
+            	    productRow.getAs("carbohydrates_100g"),
+            	    productRow.getAs("sugars_100g"),        // Ajouté
+            	    productRow.getAs("fiber_100g"),
+            	    productRow.getAs("proteins_100g"),
+            	    productRow.getAs("salt_100g"),
+            	    productRow.getAs("sodium_100g"),
+            	    productRow.getAs("allergens"),
+            	    productRow.getAs("nutriscore_grade"),
+            	    productRow.getAs("nova_group")
+            	));
+
 
             return productId;
         }
@@ -243,21 +245,23 @@ public class Generator {
 
     private static StructType getProductsSchema() {
         return new StructType(new StructField[]{
-                DataTypes.createStructField("code", DataTypes.IntegerType, false),
-                DataTypes.createStructField("product_name", DataTypes.StringType, true),
-                DataTypes.createStructField("categories", DataTypes.StringType, true),
-                DataTypes.createStructField("brands", DataTypes.StringType, true),
-                DataTypes.createStructField("countries_tags", DataTypes.StringType, true),
-                DataTypes.createStructField("energy-kcal_100g", DataTypes.FloatType, true),
-                DataTypes.createStructField("fat_100g", DataTypes.FloatType, true),
-                DataTypes.createStructField("carbohydrates_100g", DataTypes.FloatType, true),
-                DataTypes.createStructField("fiber_100g", DataTypes.FloatType, true),
-                DataTypes.createStructField("proteins_100g", DataTypes.FloatType, true),
-                DataTypes.createStructField("salt_100g", DataTypes.FloatType, true),
-                DataTypes.createStructField("sodium_100g", DataTypes.FloatType, true),
-                DataTypes.createStructField("allergens", DataTypes.StringType, true),
-                DataTypes.createStructField("nutriscore_grade", DataTypes.StringType, true),
-                DataTypes.createStructField("nova_group", DataTypes.IntegerType, true)
+            DataTypes.createStructField("code", DataTypes.IntegerType, false),
+            DataTypes.createStructField("product_name", DataTypes.StringType, true),
+            DataTypes.createStructField("categories", DataTypes.StringType, true),
+            DataTypes.createStructField("brands", DataTypes.StringType, true),
+            DataTypes.createStructField("countries_tags", DataTypes.StringType, true),
+            DataTypes.createStructField("energy-kcal_100g", DataTypes.FloatType, true),
+            DataTypes.createStructField("fat_100g", DataTypes.FloatType, true),
+            DataTypes.createStructField("saturated-fat_100g", DataTypes.FloatType, true), // Ajouté
+            DataTypes.createStructField("carbohydrates_100g", DataTypes.FloatType, true),
+            DataTypes.createStructField("sugars_100g", DataTypes.FloatType, true),       // Ajouté
+            DataTypes.createStructField("fiber_100g", DataTypes.FloatType, true),
+            DataTypes.createStructField("proteins_100g", DataTypes.FloatType, true),
+            DataTypes.createStructField("salt_100g", DataTypes.FloatType, true),
+            DataTypes.createStructField("sodium_100g", DataTypes.FloatType, true),
+            DataTypes.createStructField("allergens", DataTypes.StringType, true),
+            DataTypes.createStructField("nutriscore_grade", DataTypes.StringType, true),
+            DataTypes.createStructField("nova_group", DataTypes.IntegerType, true)
         });
     }
 }
