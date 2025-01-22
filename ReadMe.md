@@ -35,8 +35,8 @@ cd OpenFoodsFact-Project
 
 2. **Set Up the Environment**
     
-    - Place the downloaded OpenFoodFacts CSV file in the data/ directory.
-    - Ensure your Config.java is properly set up with database credentials and file paths.
+    - Place the downloaded OpenFoodFacts CSV file in the **"data/"** folder.
+
 3. **Build and Run with Docker**
        
     ```
@@ -84,11 +84,26 @@ The workflow of this project includes the following key modules:
 - Generator.java: Generates menus based on cleaned data and user preferences.
 - Loader.java: Inserts the generated menus into the Data Warehouse.
 
+### Global Schema of the Project
+
+Here is the Global Schema for the project below.
+
+![image](https://github.com/user-attachments/assets/fde3451b-c591-4c5a-8fc9-69523ba06ba8)
+
+
+
+### Conceptual Data Model (CDM)
+
+Here is the Conceptual Data Model for the project below.
+
+![image](https://github.com/user-attachments/assets/7e3936f7-6c55-4b26-8614-2b0ec5cb732b)
+
+
 ### Workflow Diagram
 
 The project follows this workflow:
 
-![image](https://github.com/user-attachments/assets/9d9d1e14-c8a8-40cc-a445-eb792dcc4968)
+![image](https://github.com/user-attachments/assets/2fdab7eb-13b8-49df-a253-e0fb7be91c9d)
 
 
 
