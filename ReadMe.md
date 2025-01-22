@@ -40,7 +40,7 @@ cd OpenFoodsFact-Project
 3. **Build and Run with Docker**
        
     ```
-    docker build -t openfoodfacts-etl
+    docker build -t openfoodfacts-etl .
     docker-compose up
     ```
     
