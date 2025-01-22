@@ -99,15 +99,14 @@ public class Generator {
             List<Row> uniqueProducts,
             SparkSession sparkSession
     ) {
-        // Load user data from the database
-    	Dataset<Row> userDataset = Extractor.extractFromDatabase(
-    	        sparkSession,
-    	        Config.DB_HOST,
-    	        Config.DB_USER,
-    	        Config.DB_PASSWORD,
-    	        "(SELECT * FROM users WHERE id = " + userId + ") AS user_data"
-    	);
-
+        // Charger les données de l'utilisateur
+        Dataset<Row> userDataset = Extractor.extractFromDatabase(
+                sparkSession,
+                Config.DB_HOST,
+                Config.DB_USER,
+                Config.DB_PASSWORD,
+                "(SELECT * FROM users WHERE id = " + userId + ") AS user_data"
+        );
 
         Row user = userDataset.first();
         if (user == null) {
@@ -121,7 +120,7 @@ public class Generator {
             throw new IllegalArgumentException("No diet associated with user ID " + userId);
         }
 
-        // Load dietary information from the database
+        // Charger les informations de régime
         Dataset<Row> regimesDataset = Extractor.extractFromDatabase(
                 sparkSession,
                 Config.DB_HOST,
@@ -130,24 +129,40 @@ public class Generator {
                 "(SELECT * FROM regimes WHERE regime_id = " + dietId + ") AS regime_data"
         );
 
-
         Double maxCalories = regimesDataset.select("calories_max").as(Encoders.DOUBLE()).first();
 
-        // List of allergy IDs for the user
-        List<Integer> userAllergyIds = new ArrayList<>();
+        // Charger les informations des allergies
+        Dataset<Row> allergyDataset = Extractor.extractFromDatabase(
+                sparkSession,
+                Config.DB_HOST,
+                Config.DB_USER,
+                Config.DB_PASSWORD,
+                "(SELECT id, name FROM allergies) AS allergy_data"
+        );
+
+        // Récupérer le nom de l'allergène pour l'utilisateur
+        String userAllergyName = null;
         if (allergyId != null) {
-            userAllergyIds.add(allergyId);
+        	userAllergyName = allergyDataset
+        	        .filter(col("id").equalTo(allergyId)) // Trouver l'ID correspondant
+        	        .select(lower(col("name")).alias("name")) // Convertir en minuscule
+        	        .as(Encoders.STRING())
+        	        .first();
         }
 
-        // Filter products based on allergies and calorie constraints
+        // Filtrer les produits en fonction des allergènes et des calories
         Dataset<Row> filteredProducts = cleanedData
-                .filter(not(col("allergens").isin((Object[]) userAllergyIds.toArray())))
-                .filter(col("energy-kcal_100g").leq(maxCalories));
+                .filter(col("energy-kcal_100g").leq(maxCalories)); // Filtrer par calories
 
+        if (userAllergyName != null) {
+            filteredProducts = filteredProducts
+                    .filter(not(col("allergens").contains(userAllergyName))); // Exclure les produits avec l'allergène
+        }
+
+        // Générer le menu hebdomadaire
         List<Row> menuDays = new ArrayList<>();
         int menuDaysIdCounter = 1;
 
-        // Generate menu for each day of the week
         for (int day = 1; day <= 7; day++) {
             Set<Integer> usedProductIdsDaily = new HashSet<>();
 
@@ -172,6 +187,7 @@ public class Generator {
 
         return menuDays;
     }
+
 
     /**
      * Selects a unique product from the filtered products Dataset.
