@@ -11,7 +11,7 @@ services:
       - "3306:3306" # MySQL accessible sur le port 3306
     volumes:
       - ./mysql_data:/var/lib/mysql # Persistance des données MySQL
-      - ./sql-scripts:/docker-entrypoint-initdb.d # Initialisation avec des scripts SQL au démarrage
+      - ./sql-scripts/dump.sql:/docker-entrypoint-initdb.d/dump.sql # Initialisation avec des scripts SQL au démarrage
 
 volumes:
   mysql_data:
