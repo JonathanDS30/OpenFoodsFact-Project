@@ -30,25 +30,8 @@ public class Main {
             Dataset<Row> transformedData = Transformer.transformData(rawCsvData, sparkSession)
                     .persist(StorageLevel.MEMORY_AND_DISK());
 
-            // Step 3: Load additional datasets for allergies and users
-            System.out.println("Loading additional datasets (allergies and users)...");
-            Dataset<Row> allergiesData = Extractor.extractFromDatabase(
-                    sparkSession,
-                    Config.DB_HOST,
-                    Config.DB_USER,
-                    Config.DB_PASSWORD,
-                    "allergies"
-            );
 
-            Dataset<Row> usersData = Extractor.extractFromDatabase(
-                    sparkSession,
-                    Config.DB_HOST,
-                    Config.DB_USER,
-                    Config.DB_PASSWORD,
-                    "users"
-            );
-
-            // Step 4: Generate weekly menus for all users
+            // Step 3: Generate weekly menus for all users
             System.out.println("Generating weekly menus for all users...");
             Map<String, Dataset<Row>> generatedData = Generator.generateWeeklyMenusForAllUsers(
                     transformedData,

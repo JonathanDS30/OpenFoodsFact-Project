@@ -37,8 +37,7 @@ public class Transformer {
                 col("salt_100g").cast("float"),
                 col("sodium_100g").cast("float"),
                 col("pnns_groups_1").cast("string"),
-                col("pnns_groups_2").cast("string"),
-                col("origins").cast("string")
+                col("pnns_groups_2").cast("string")
         );
 
         // Removing rows with null values in essential columns
