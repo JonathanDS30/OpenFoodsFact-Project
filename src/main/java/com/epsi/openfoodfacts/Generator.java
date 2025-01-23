@@ -22,13 +22,13 @@ public class Generator {
             SparkSession sparkSession
     ) {
         // Load the users dataset from the database
-    	Dataset<Row> usersDataset = Extractor.extractFromDatabase(
-    	        sparkSession,
-    	        Config.DB_HOST,
-    	        Config.DB_USER,
-    	        Config.DB_PASSWORD,
-    	        "users"
-    	);
+        Dataset<Row> usersDataset = Extractor.extractFromDatabase(
+                sparkSession,
+                Config.DB_HOST,
+                Config.DB_USER,
+                Config.DB_PASSWORD,
+                "users"
+        );
 
         AtomicInteger menuIdCounter = new AtomicInteger(1); // Counter for generating unique menu IDs
 
@@ -38,7 +38,7 @@ public class Generator {
         Set<Integer> usedProductIdsGlobal = new HashSet<>();
         List<Row> uniqueProducts = new ArrayList<>();
 
-        // Loop through each user to generate their menu
+        // Iterate through each user to generate their menu
         for (Row user : usersDataset.collectAsList()) {
             try {
                 int userId = user.getAs("id");
@@ -99,7 +99,7 @@ public class Generator {
             List<Row> uniqueProducts,
             SparkSession sparkSession
     ) {
-        // Charger les données de l'utilisateur
+        // Load user data from the database
         Dataset<Row> userDataset = Extractor.extractFromDatabase(
                 sparkSession,
                 Config.DB_HOST,
@@ -120,7 +120,7 @@ public class Generator {
             throw new IllegalArgumentException("No diet associated with user ID " + userId);
         }
 
-        // Charger les informations de régime
+        // Load diet information
         Dataset<Row> regimesDataset = Extractor.extractFromDatabase(
                 sparkSession,
                 Config.DB_HOST,
@@ -131,7 +131,7 @@ public class Generator {
 
         Double maxCalories = regimesDataset.select("calories_max").as(Encoders.DOUBLE()).first();
 
-        // Charger les informations des allergies
+        // Load allergy information
         Dataset<Row> allergyDataset = Extractor.extractFromDatabase(
                 sparkSession,
                 Config.DB_HOST,
@@ -140,26 +140,26 @@ public class Generator {
                 "(SELECT id, name FROM allergies) AS allergy_data"
         );
 
-        // Récupérer le nom de l'allergène pour l'utilisateur
+        // Retrieve the name of the allergen for the user
         String userAllergyName = null;
         if (allergyId != null) {
-        	userAllergyName = allergyDataset
-        	        .filter(col("id").equalTo(allergyId)) // Trouver l'ID correspondant
-        	        .select(lower(col("name")).alias("name")) // Convertir en minuscule
-        	        .as(Encoders.STRING())
-        	        .first();
+            userAllergyName = allergyDataset
+                    .filter(col("id").equalTo(allergyId)) // Find the corresponding ID
+                    .select(lower(col("name")).alias("name")) // Convert to lowercase
+                    .as(Encoders.STRING())
+                    .first();
         }
 
-        // Filtrer les produits en fonction des allergènes et des calories
+        // Filter products based on allergens and calorie constraints
         Dataset<Row> filteredProducts = cleanedData
-                .filter(col("energy-kcal_100g").leq(maxCalories)); // Filtrer par calories
+                .filter(col("energy-kcal_100g").leq(maxCalories)); // Filter by calories
 
         if (userAllergyName != null) {
             filteredProducts = filteredProducts
-                    .filter(not(col("allergens").contains(userAllergyName))); // Exclure les produits avec l'allergène
+                    .filter(not(col("allergens").contains(userAllergyName))); // Exclude products with the allergen
         }
 
-        // Générer le menu hebdomadaire
+        // Generate the weekly menu
         List<Row> menuDays = new ArrayList<>();
         int menuDaysIdCounter = 1;
 
@@ -188,7 +188,6 @@ public class Generator {
         return menuDays;
     }
 
-
     /**
      * Selects a unique product from the filtered products Dataset.
      */
@@ -212,25 +211,24 @@ public class Generator {
 
             // Add product information to the list of unique products
             uniqueProducts.add(RowFactory.create(
-            	    productRow.getAs("code"),
-            	    productRow.getAs("product_name"),
-            	    productRow.getAs("categories"),
-            	    productRow.getAs("brands"),
-            	    productRow.getAs("countries_tags"),
-            	    productRow.getAs("energy-kcal_100g"),
-            	    productRow.getAs("fat_100g"),
-            	    productRow.getAs("saturated-fat_100g"),  // Ajouté
-            	    productRow.getAs("carbohydrates_100g"),
-            	    productRow.getAs("sugars_100g"),        // Ajouté
-            	    productRow.getAs("fiber_100g"),
-            	    productRow.getAs("proteins_100g"),
-            	    productRow.getAs("salt_100g"),
-            	    productRow.getAs("sodium_100g"),
-            	    productRow.getAs("allergens"),
-            	    productRow.getAs("nutriscore_grade"),
-            	    productRow.getAs("nova_group")
-            	));
-
+                productRow.getAs("code"),
+                productRow.getAs("product_name"),
+                productRow.getAs("categories"),
+                productRow.getAs("brands"),
+                productRow.getAs("countries_tags"),
+                productRow.getAs("energy-kcal_100g"),
+                productRow.getAs("fat_100g"),
+                productRow.getAs("saturated-fat_100g"),
+                productRow.getAs("carbohydrates_100g"),
+                productRow.getAs("sugars_100g"),
+                productRow.getAs("fiber_100g"),
+                productRow.getAs("proteins_100g"),
+                productRow.getAs("salt_100g"),
+                productRow.getAs("sodium_100g"),
+                productRow.getAs("allergens"),
+                productRow.getAs("nutriscore_grade"),
+                productRow.getAs("nova_group")
+            ));
 
             return productId;
         }
@@ -261,23 +259,23 @@ public class Generator {
 
     private static StructType getProductsSchema() {
         return new StructType(new StructField[]{
-            DataTypes.createStructField("code", DataTypes.IntegerType, false),
-            DataTypes.createStructField("product_name", DataTypes.StringType, true),
-            DataTypes.createStructField("categories", DataTypes.StringType, true),
-            DataTypes.createStructField("brands", DataTypes.StringType, true),
-            DataTypes.createStructField("countries_tags", DataTypes.StringType, true),
-            DataTypes.createStructField("energy-kcal_100g", DataTypes.FloatType, true),
-            DataTypes.createStructField("fat_100g", DataTypes.FloatType, true),
-            DataTypes.createStructField("saturated-fat_100g", DataTypes.FloatType, true), // Ajouté
-            DataTypes.createStructField("carbohydrates_100g", DataTypes.FloatType, true),
-            DataTypes.createStructField("sugars_100g", DataTypes.FloatType, true),       // Ajouté
-            DataTypes.createStructField("fiber_100g", DataTypes.FloatType, true),
-            DataTypes.createStructField("proteins_100g", DataTypes.FloatType, true),
-            DataTypes.createStructField("salt_100g", DataTypes.FloatType, true),
-            DataTypes.createStructField("sodium_100g", DataTypes.FloatType, true),
-            DataTypes.createStructField("allergens", DataTypes.StringType, true),
-            DataTypes.createStructField("nutriscore_grade", DataTypes.StringType, true),
-            DataTypes.createStructField("nova_group", DataTypes.IntegerType, true)
+                DataTypes.createStructField("code", DataTypes.IntegerType, false),
+                DataTypes.createStructField("product_name", DataTypes.StringType, true),
+                DataTypes.createStructField("categories", DataTypes.StringType, true),
+                DataTypes.createStructField("brands", DataTypes.StringType, true),
+                DataTypes.createStructField("countries_tags", DataTypes.StringType, true),
+                DataTypes.createStructField("energy-kcal_100g", DataTypes.FloatType, true),
+                DataTypes.createStructField("fat_100g", DataTypes.FloatType, true),
+                DataTypes.createStructField("saturated-fat_100g", DataTypes.FloatType, true),
+                DataTypes.createStructField("carbohydrates_100g", DataTypes.FloatType, true),
+                DataTypes.createStructField("sugars_100g", DataTypes.FloatType, true),
+                DataTypes.createStructField("fiber_100g", DataTypes.FloatType, true),
+                DataTypes.createStructField("proteins_100g", DataTypes.FloatType, true),
+                DataTypes.createStructField("salt_100g", DataTypes.FloatType, true),
+                DataTypes.createStructField("sodium_100g", DataTypes.FloatType, true),
+                DataTypes.createStructField("allergens", DataTypes.StringType, true),
+                DataTypes.createStructField("nutriscore_grade", DataTypes.StringType, true),
+                DataTypes.createStructField("nova_group", DataTypes.IntegerType, true)
         });
     }
 }
